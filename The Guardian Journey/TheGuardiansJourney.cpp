@@ -24,21 +24,19 @@ class Guardian{
 
 class ArbolGuardianes{
     
-    private:
+
+    public:
 
         vector<Guardian*> guardians;
         Guardian* root;
-        
-    
-    public:
 
         ArbolGuardianes() : root(nullptr) {}
 
         Guardian* findGuardian(const string& nombre);
         void insertarGuardian(const string& nombre, const string& npoder,const string& maestro, const string& villa);
         void CargarPorLista(const string& filename);
-        void printGuardian(Guardian* guard, int indent);
-        void printGuardians();
+        void printGuardian(Guardian* guard, int indent) const;
+        void printGuardians() const;
         
 
 };
@@ -104,11 +102,12 @@ void ArbolGuardianes::CargarPorLista(const string& filename){
         getline(iss, village);
         insertarGuardian(name, powerLevel, mainMaster, village);
             
-        }
-        file.close();
+    }
+    
+    file.close();
 }
 
-void ArbolGuardianes::printGuardian(Guardian* guard, int indent){
+void ArbolGuardianes::printGuardian(Guardian* guard, int indent) const{
 
      if (guard != nullptr) {
         
@@ -121,86 +120,197 @@ void ArbolGuardianes::printGuardian(Guardian* guard, int indent){
     }
 }
 
-void ArbolGuardianes::printGuardians(){
+void ArbolGuardianes::printGuardians() const{
 
     printGuardian(root, 0);
 }
 
 class Aldeas{
 
-    private:
-
-        int Vectores;
-        vector<vector<int>> Adyasencia;
-
     public:
-
+        
+        string nombre;
+        vector<string> vecinos;
+        ArbolGuardianes ArbolLocal;
+        
         Aldeas();
-        Aldeas(int vectores);
-        void addEdge(int u, int v);
-        void printgraf();
-        void adyacencia(int u, unordered_map<int, string> aldea);
+        void Imprimir() const;
+        void GuardianesAldea(const string& a, const unordered_map<string, Aldeas> c);
         bool busqueda(int u, int v, vector<bool>& recorrido, vector<int>& Marca);
-
+        void AgregarGuardian(Guardian* guardian, const string& villa);
 };
 
-Aldeas::Aldeas(int vectores){
+Aldeas::Aldeas(){
 
-    Vectores = vectores;
-    Adyasencia.resize(vectores, vector<int>(vectores,0));
+    
 }
 
-void Aldeas::addEdge(int u, int v){
+void Aldeas::AgregarGuardian(Guardian* guardian, const string& villa) {
 
-    Adyasencia[u][v] = 1;
-    Adyasencia[v][u] = 1;
-}
+        if(nombre == villa){
 
-void Aldeas::printgraf(){
-
-    for(int p = 0; p < Vectores; p++){
-
-        for(int q = 0; q < Vectores; q++){
-
-            cout<<Adyasencia[p][q]<<"";
+            ArbolLocal.insertarGuardian(guardian->Nombre,to_string(guardian->Npoder), guardian->Maestro, guardian->Villa);
         }
+}
 
-        cout<<'\n';
+void Aldeas::Imprimir() const{
+
+    cout<<"Aldeas Vecinas: ";
+
+    for(const string& vecino : vecinos){
+
+        cout<<vecino<<",";
+    }
+
+    cout<<endl;
+}
+
+void Aldeas::GuardianesAldea(const string& a, unordered_map<string, Aldeas> c){
+
+    cout<<"Guardianes aldea: "<<a<<endl;
+
+    ArbolGuardianes* arbol = &c.at(a).ArbolLocal;
+
+    arbol->printGuardians();
+}
+
+
+
+void cargarAldeasPorLista(const string& filename, unordered_map<string, Aldeas>& c){
+
+    
+    ifstream file(filename);   
+    
+    if (!file) {
+            
+        cerr << "Failed to open file: " << filename << endl;
+        
+        return;
+    }
+    
+    string line;
+    getline(file, line);
+        
+    while (getline(file, line)) {
+        
+        istringstream iss(line);
+        string villa;
+        string villaVecinas;
+        getline(iss,villa,',');
+        getline(iss,villaVecinas);
+
+        Aldeas& aldea = c[villa];
+        aldea.nombre = villa;
+        aldea.vecinos.push_back(villaVecinas);
+    }
+    
+    file.close(); 
+}
+
+void cargarGuardianesPorLista(const string& filename, unordered_map<string, Aldeas>& c, ArbolGuardianes& tree){
+
+    ifstream file(filename);   
+    
+    if (!file) {
+            
+        cerr << "Failed to open file: " << filename << endl;
+        
+        return;
+    }
+
+    string line;
+    getline(file, line);
+
+    while (getline(file, line)) {
+        istringstream iss(line);
+        string name, mainMaster, village;
+        string powerLevel;
+        getline(iss, name, ',');
+        getline(iss, powerLevel, ',');
+        getline(iss, mainMaster, ',');
+        getline(iss, village);
+
+        tree.insertarGuardian(name, powerLevel, mainMaster, village);
+        Aldeas& aldea = c[village];
+        Guardian* guardian = tree.findGuardian(name);
+        aldea.AgregarGuardian(guardian, village);
+    }
+
+    file.close();    
+
+}
+
+void ImprimirAldeas(const unordered_map<string,Aldeas>& v){
+
+    for(const auto& par : v){
+
+        const string& key = par.first;
+        const Aldeas& valor = par.second;
+
+        cout<<"Villa: "<<key<<endl;
+        valor.Imprimir();
+        cout<<endl;
     }
 }
 
-void Aldeas::adyacencia(int u, unordered_map<int, string> aldea){
+void imprimirAldeasDisponibles(vector<string> v){
 
-    cout<<"Aldeas donde puede viajar"<<endl;
-    auto it = aldea.find(u);
+    for(const string& data : v){
 
-    if(it != aldea.end()){
-
-        cout<<"Esta en:"<<it->first;
-        cout<<"Puede viajar a:"<<endl;
-
-        for(int v = 0; v < Vectores; v++){
-
-            if(Adyasencia[u][v] == 1){
-
-                auto ip = aldea.find(v);
-                if(ip != aldea.end()){
-
-                    cout<<ip->first<<endl;
-                }
-                
-            }
-        }
+        cout<<data<<endl;
     }
+}
+
+void crearGuardian(Guardian* guard, vector<string> v, unordered_map<string,Aldeas> c){
+
+    string name;
+    string village;
+
+    cout<<"Ingrese el nombre de su personaje"<<endl;
+    cin>>name;
+
+    cout<<"Ingrese la aldea de origen del guardian"<<endl;
+    cout<<"Recuerde ingresar el nombre exactamente como esta"<<endl;
+
+    imprimirAldeasDisponibles(v);
+
+    cin>>village;
+
+    
 }
 
 int main(){
+    
+    int opcrear;
+
+    Guardian* jugador;
 
     ArbolGuardianes tree;
+    Aldeas Reino;
 
-    tree.CargarPorLista("Guardianes.txt");
+    string prueba = "Desert Village";
+    
+    unordered_map<string,int> Referencia;
+    unordered_map<string, Aldeas> conexion;
+    vector<string> villas; 
+
+    cargarAldeasPorLista("Aldeas.csv",conexion);
+    cargarGuardianesPorLista("Guardianes.csv", conexion, tree);
+
     tree.printGuardians();
+    
+    ImprimirAldeas(conexion);
+    Reino.GuardianesAldea(prueba, conexion);
 
+    cout<<"Bienvenido a The Guardians Jorney"<<endl;
+    cout<<"Primero, desea crear a su personaje, o prefiere elegir uno disponible"<<endl;
+    
+    cin>>opcrear;
 
+    if(opcrear == 1){
+
+        crearGuardian(jugador,villas, conexion);
+        tree.insertarGuardian(jugador->Nombre,to_string(jugador->Npoder),jugador->Maestro,jugador->Villa);
+    }
     return 0;
 }
