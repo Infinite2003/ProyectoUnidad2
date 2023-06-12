@@ -258,10 +258,24 @@ void cargarGuardianesPorLista(const string& filename, unordered_map<string, Alde
         getline(iss, mainMaster, ',');
         getline(iss, village);
 
+        Guardian* guardian = new Guardian;  // Crear un nuevo objeto Guardian
+
+        guardian->Nombre = name;
+        guardian->Npoder = stoi(powerLevel);
+        guardian->Maestro = mainMaster;
+        guardian->Villa = village;
+
         tree.insertarGuardian(name, powerLevel, mainMaster, village);
-        Aldeas& aldea = c[village];
-        Guardian* guardian = tree.findGuardian(name);
-        aldea.AgregarGuardian(guardian, village);
+
+        if (c.find(village) != c.end()) {
+            
+            Aldeas& aldea = c[village];
+            aldea.AgregarGuardian(guardian, village);
+        } 
+        
+        else {
+            cerr << "Error: La aldea '" << village << "' no fue encontrada." << endl;
+        }
     }
 
     file.close();    
@@ -356,9 +370,10 @@ void recomendar(unordered_map<string,Aldeas>& c, string& dato){
     }
 }
 
-void combate(Guardian* j, unordered_map<string,Aldeas>& c, string& dato){
+void combate(Guardian* j, unordered_map<string,Aldeas>& c, string& dato, int& fin){
 
     string eleccion;
+    srand(time(0));
 
     cout<<"Se le recomienda el siguiente oponente"<<endl;
 
@@ -370,6 +385,8 @@ void combate(Guardian* j, unordered_map<string,Aldeas>& c, string& dato){
 
     cin>>eleccion;
 
+    ArbolGuardianes& actual = c[dato].ArbolLocal;
+
     if(c[dato].ArbolLocal.findGuardian(eleccion) != nullptr){
 
         cout<<"Empieza el combate"<<endl;
@@ -378,18 +395,37 @@ void combate(Guardian* j, unordered_map<string,Aldeas>& c, string& dato){
 
         if(ganar > j->Npoder){
 
-            cout<<"Has perdido el combate";
+            cout<<"Has perdido el combate"<<endl;;
         }
 
         else{
 
-            cout<<"Haz ganado";
+            cout<<"Haz ganado el combate"<<endl;
 
-            if(c[dato].puntos < 4 && j->Npoder > 100){
+            
+            if(c[dato].ArbolLocal.root->Nombre == "Stormheart"){
 
+                cout<<"Haz ganado contra Stromheart"<<endl;
+                cout<<"Muchas felicidades, haz ganado el juego"<<endl;
+                fin = 1;
+            }
+
+            if(c[dato].puntos < 4 && j->Npoder < 100){
+
+                if(actual.findGuardian(eleccion) != c[dato].ArbolLocal.root){
+
+                    cout<<"Haz ganado contra un aprendiz"<<endl;
+                    j->Npoder = j->Npoder + 1;
+                    c[dato].puntos = c[dato].puntos + 1;
+                }
                 
-                j->Npoder = j->Npoder + 1;
-                c[dato].puntos = c[dato].puntos + 1;
+                else{
+                    
+                    cout<<"Haz ganado contra el maestro de la Aldea"<<endl;
+                    j->Npoder = j->Npoder + 2;
+                    c[dato].puntos = c[dato].puntos + 2;
+                }
+
             }
 
             else if(j->Npoder >= 100){
@@ -400,7 +436,7 @@ void combate(Guardian* j, unordered_map<string,Aldeas>& c, string& dato){
 
             else{
 
-                cout<<"Ya alcanzo el limite de puntos de esta aldea";
+                cout<<"Ya alcanzo el limite de puntos de esta aldea"<<endl;
             }
         }
     }
@@ -413,69 +449,100 @@ void combate(Guardian* j, unordered_map<string,Aldeas>& c, string& dato){
 
 }
 
-void viajar(unordered_map<string, Aldeas> c, string p){
+void Alquimia(unordered_map<string, Aldeas> c, string a, string b, int& poder){
+
+    srand(time(0));
+
+    auto it1 = c.find(a);
+    auto it2 = c.find(b);
+
+    if(it1 != c.end() && it2 != c.end()){
+
+        Aldeas& origen = it1->second;
+        Aldeas& destino = it2->second;
+
+        origen.vecinos.push_back(destino.nombre);
+        destino.vecinos.push_back(origen.nombre);
+
+        int restar = rand()% 2+2;
+        poder = poder - restar;
+
+        cout<<"Se creo un camino desde "<< a << "hasta "<< b << endl;
+        cout<<"Se cobro "<< restar << "puntos de poder"<<endl;
+    }
+
+    else{
+
+        cout<<"No se pudo generar un camino, asegurece de ingresar dos Aldeas que existas"<<endl;
+    }
+}
+
+void viajar(unordered_map<string, Aldeas>& c, string& p, Guardian* j){
 
     string destino;
     int opcion;
     int ciclo = 0;
 
-    cout<<"Hacia donde desea viajar"<<endl;
-    cout<<"Estas son las aldeas disponibles: "<<endl;
+    cout << "Hacia donde desea viajar" << endl;
+    cout << "Estas son las aldeas disponibles: " << endl;
 
-    mostrarAdyacencia(c,p);
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    mostrarAdyacencia(c, p);
 
-    getline(cin,destino);
+    getline(cin, destino);
+
+    auto it = c.find(destino);
     
     for(const auto& data : c){
 
         const string& key = data.first;
         const Aldeas& value = data.second;
-        
+
         if(destino == key){
 
-            cout<<"Ya se encuentra en esta Aldea";
+            cout<<"Ya se encuentra en esa aldea"<<endl;
         }
 
         else if(destino == value.nombre){
 
-            cout<<"Ha viajado a "<< destino<<endl;
-            p = destino;
+            if(find(value.vecinos.begin(), value.vecinos.end(), destino) != value.vecinos.end()){
+
+                cout<<"A viajado a "<< destino<<endl;
+                p = destino;
+                return;
+            }
         }
 
-        else{
+        else {
+        
+        cout << "No existe conexión entre la Aldea actual y la que está ingresando" << endl;
+        cout << "¿Desea realizar alquimia?" << endl;
 
-            cout<<"No existe conexion entre la Aldea actual y la que esta ingresando"<<endl;
-            cout<<"¿Desea realizar alquimia?";
+        while (ciclo == 0) {
+         
+            cout << "1: Si" << endl;
+            cout << "2: No" << endl;
 
-            while(ciclo == 0){
+            cin >> opcion;
 
-                cout<<"1: Si"<<endl;
-                cout<<"2: No"<<endl;
-
-                cin>>opcion;
-
-                if(opcion == 1){
-
-                    
-                    ciclo = 1;
-                }
-
-                else if(opcion == 2){
-
-                    cout<<"Decidio no hacer alquimia"<<endl;
-                    ciclo = 1;
-                }
-
-                else{
-
-                    cout<<"Ingrese una opcion valida"<<endl;
-                }
-            }
-
+            if (opcion == 1) {
+                
+                Alquimia(c, p, destino, j->Npoder);
+                ciclo = 1;
+            } 
             
+            else if (opcion == 2) {
+               
+                cout << "Decidió no hacer alquimia" << endl;
+                ciclo = 1;
+            } 
+            else {
+                
+                cout << "Ingrese una opción válida" << endl;
+            }
         }
     }
-
+    }
 }   
 
 int main(){
@@ -485,7 +552,6 @@ int main(){
     int opcrear, ciclo = 0;
     int terminar = 0;
     int opcion = 0;
-    int v; 
     string current;
     
     Guardian* jugador = new Guardian;
@@ -496,6 +562,7 @@ int main(){
     vector<string> villas; 
 
     cargarAldeasPorLista("Aldeas.csv",conexion, villas);
+
     cargarGuardianesPorLista("Guardianes.csv", conexion, tree);
 
     cout<<"Bienvenido a The Guardians Jorney"<<endl;
@@ -538,13 +605,14 @@ int main(){
 
         if(opcion == 1){
 
-            combate(jugador,conexion,current);
+            combate(jugador,conexion,current, terminar);
         }
 
         else if(opcion == 2){
 
-            viajar(conexion,current);
+            viajar(conexion,current, jugador);
         }
+
         else{
 
             cout<<"Ingrese una opcion valida"<<endl;
